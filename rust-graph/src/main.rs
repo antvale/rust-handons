@@ -5,7 +5,6 @@ use std::io::BufReader;
 use std::io::prelude::*;
 use std::str;
 use substring::Substring;
-extern crate base64;
 extern crate table_extract;
 
 
@@ -25,9 +24,13 @@ fn main() -> Result<()>{
     let table = table_extract::Table::find_first(&html).unwrap();
     for row in &table {
 
+        let id=row.get("Id").unwrap_or("<id missing>");
+        let item=row.get("Item").unwrap_or("<item missing>");
+        let azione=row.get("Azione").unwrap_or("<azione missing>");
         let next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
 
-        println!("{:?}",next_list);
+        println!("{},{},{},{:?}",id,item,azione,next_list);
+        
 
         //println!("{:?}",v);
 
@@ -135,11 +138,14 @@ fn get_next(td:&str) -> Vec<Next>{
         {
             for c in v.iter() {
             let z:Vec<&str> =c.split("&nbsp;").collect();
-                if z.len()==1 {
+                if z.len()==1 && z[0].is_empty(){
+                    continue;
+                } else if z.len()==1 && !z[0].is_empty(){
                     let next=Next {
                         action:String::from(""),
                         link:get_link(&v[0].to_string()),
-                }; 
+                };
+                next_list.push(next); 
                 } else {
                 let next=Next {
                     action:string_clean(z[0].to_string()),

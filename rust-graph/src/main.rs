@@ -7,6 +7,10 @@ use std::str;
 use substring::Substring;
 extern crate table_extract;
 
+#[macro_use]
+extern crate simple_excel_writer as excel;
+
+use excel::*;
 
 #[derive(Debug)]
 struct Next {
@@ -16,107 +20,87 @@ struct Next {
 
 fn main() -> Result<()>{
 
-    let file = File::open("./samples/FE115 - VOIP Adsl e Fibra.htm")?;
+    let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
+
+    let file = File::open(&filename)?;
     let mut buf_reader = BufReader::new(file);
     let mut html = String::new();
     buf_reader.read_to_string(&mut html)?;
 
-    let table = table_extract::Table::find_first(&html).unwrap();
-    for row in &table {
+    filename.push_str(".xlsx");
 
+    let mut wb = Workbook::create(&filename.as_str());
+    
+    let mut nodes = wb.create_sheet("Nodes");
+    let mut edges = wb.create_sheet("Edges");
+
+    nodes.add_column(Column { width: 30.0 });
+    nodes.add_column(Column { width: 30.0 });
+    nodes.add_column(Column { width: 30.0 });
+
+    edges.add_column(Column { width: 30.0 });
+    edges.add_column(Column { width: 30.0 });
+    edges.add_column(Column { width: 30.0 });
+
+    let table = table_extract::Table::find_first(&html).unwrap();
+    
+    wb.write_sheet(&mut nodes, |sheet_writer| {
+        let sw = sheet_writer;
+        sw.append_row(row!["ID", "Name","Role"])?;
+    
+        //"Target","Source","Type","Label"
+
+    let mut index=0;
+   
+    for row in &table {
+        //if index > 1 {break;}
         let id=row.get("Id").unwrap_or("<id missing>");
         let item=row.get("Item").unwrap_or("<item missing>");
         let azione=row.get("Azione").unwrap_or("<azione missing>");
-        let next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
-
-        println!("{},{},{},{:?}",id,item,azione,next_list);
-        
-
-        //println!("{:?}",v);
-
+        //let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
+        sw.append_row(row![id, azione,item])?;
         /*
-
-
-        let mut link=String::from("");
-        let mut action=String::from("");
-
-        if v.len()>1 {
-            action.push_str(&v[0]);
-            link.push_str(v[1]);
-        } else {
-            link.push_str(v[0]);
+        for next in next_list.iter() {
         }
-
-        //action.trim();
-        //link.trim();
-        
-        // Program".chars().position(|c| c == 'g').unwrap()
-        
-
-        let start_index= match link.find(">"){
-            Some(x)=> x,
-            None => 0,   
-         };
-
-        let end_index= match link.find("</a>"){
-            Some(x)=> x,
-            None => link.len(),   
-         };
-
-        let _link=link.substring(start_index+1, end_index);
-
-        println!("{}###{}",action.trim(),_link.trim());
         */
-        /*
-           <td class="next">
-			TRUE&nbsp;
-			<a href="#AUT_AMB_ESTAR[2837]_139784">AUT_AMB_ESTAR[2837]_139784</a>
-            <br>FALSE&nbsp;
-			<a href="#AUT_AMB_ESTAR[2837]_139778">AUT_AMB_ESTAR[2837]_139778</a></td>
-           */
-/*
-        println!(
-            "####ID########:{}\n#####ITEM#######:{}\n#####AZIONE#######:{}\n######NEXT######:{:?}\n",
-            row.get("Id").unwrap_or("<id missing>"),
-            row.get("Item").unwrap_or("<item missing>"),
-            row.get("Azione").unwrap_or("<azione missing>"),
-            action.action)
-        );
- */
+        index=index+1;
+       // println!("{},{},{},{:?}",id,item,azione,next_list);
     }
-     /*
-    let file = File::open("./samples/sample.compress")?;
-    let mut buf_reader = BufReader::new(file);
-    let mut contents = String::new();
-    buf_reader.read_to_string(&mut contents)?;
+    sw.append_row(row![(),(),()])
 
-    //base64 decoder
-    let buf = base64::decode(&mut contents).unwrap();
+}).expect("write excel error!");
 
-    println!("Base64 decoded:{:?}", buf);
-    
-    //zlib decoder
+wb.write_sheet(&mut edges, |sheet_writer| {
+    let sw = sheet_writer;
+    sw.append_row(row!["Target", "Source","Type","Label"])?;
 
-    //let mut encoder = Encoder::new(Vec::new()).unwrap();
-    //io::copy(&mut buf, &mut encoder).unwrap();
-    //io::copy(&mut &b"Hello!"[..], &mut encoder).unwrap();
-    //let encoded_data = encoder.finish().into_result().unwrap();
-    //println!("Encoded data: {:?}",&encoded_data[..]);
+    for row in &table {
+        let id=row.get("Id").unwrap_or("<id missing>");
+        let item=row.get("Item").unwrap_or("<item missing>");
+        let azione=row.get("Azione").unwrap_or("<azione missing>");
 
-    //println!("Encoded data string: {}", &std::str::from_utf8(&encoded_data[..]).unwrap());
-    //println!("Encoded data string: {}",&encoded_data[..]. 
-    // Decoding
-    //let mut decoder = Decoder::new(&buf[..]).unwrap();
-    
-    
-    let mut decoder = Decoder::new(&buf[..]).unwrap();
-    let mut decoded_data = Vec::new();
-    decoder.read_to_end(&mut decoded_data).unwrap();
+        let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
 
-    
+        for next in next_list.iter() {
+            sw.append_row(row![next.link.to_string(),id,"D",next.action.to_string()])?;
+        }
+       
+    }
+    sw.append_row(row![(),(),()])
+}).expect("write excel error!");
 
-    //println!("Compressed {:?} and Uncompressed {:?}",&contents, &decoded_data);
-    */
+
+
+/*
+  wb.write_sheet(&mut sheet, |sheet_writer| {
+    let sw = sheet_writer;
+    sw.append_row(row!["Name", "Title","Success","XML Remark"])?;
+    sw.append_row(row!["Amy", (), true,"<xml><tag>\"Hello\" & 'World'</tag></xml>"])
+    }).expect("write excel error!");
+*/
+
+  wb.close().expect("close excel error!");
+
     Ok(())
 }
 

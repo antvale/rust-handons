@@ -1,173 +1,230 @@
-use std::io::{self, Read, Result};
-use libflate::zlib::{Encoder, Decoder};
-use std::fs::File;
-use std::io::BufReader;
-use std::io::prelude::*;
-use std::str;
-use substring::Substring;
-extern crate table_extract;
+use std::{io::{self, Read, Result}, fmt::format};
 
-#[macro_use]
-extern crate simple_excel_writer as excel;
-
-use excel::*;
+macro_rules! dbg {
+    ($x:expr) => {
+        println!("{} = {:?}",stringify!($x),$x);
+    }
+}
+trait PrintShape{
+    fn print(&self);
+}
+#[derive(Debug)]
+struct Geometry {
+    relative: u8,
+    width: u8,
+    height: u8,
+    x: u8,
+    y: u8
+}
+#[derive(Debug)]
+struct Node{
+    id: String,
+    style: String,
+    text: String,
+    tooltip: String,
+    geometry: Geometry
+}
+#[derive(Debug)]
+struct Edge{
+    id: String,
+    style: String,
+    text: String,
+    target: String,
+    source: String
+}
 
 #[derive(Debug)]
-struct Next {
-    action: String,
-    link:String
+enum CellType {
+    EDGE,
+    EDGE_WITH_LABEL,
+    RECTANGLE,
+    DIAMON,
+    DOCUMENT
 }
 
-fn main() -> Result<()>{
-
-    let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
-
-    let file = File::open(&filename)?;
-    let mut buf_reader = BufReader::new(file);
-    let mut html = String::new();
-    buf_reader.read_to_string(&mut html)?;
-
-    filename.push_str(".xlsx");
-
-    let mut wb = Workbook::create(&filename.as_str());
-    
-    let mut nodes = wb.create_sheet("Nodes");
-    let mut edges = wb.create_sheet("Edges");
-
-    nodes.add_column(Column { width: 30.0 });
-    nodes.add_column(Column { width: 30.0 });
-    nodes.add_column(Column { width: 30.0 });
-
-    edges.add_column(Column { width: 30.0 });
-    edges.add_column(Column { width: 30.0 });
-    edges.add_column(Column { width: 30.0 });
-
-    let table = table_extract::Table::find_first(&html).unwrap();
-    
-    wb.write_sheet(&mut nodes, |sheet_writer| {
-        let sw = sheet_writer;
-        sw.append_row(row!["ID", "Name","Role"])?;
-    
-        //"Target","Source","Type","Label"
-
-    let mut index=0;
+#[derive(Debug)]
+struct Cell{
+    id: String,
+    cell_type: CellType, 
+    text: String,
+    tooltip: String,
+    geometry: Geometry,
+    target: String,
+    source: String
+}
+impl Diagram {
+    fn to_xml(diagram:Diagram) -> String{
+        let mut d=format!("<diagram id=\"{id}\" name=\"{page}\">
+        <mxGraphModel dx=\"2013\" dy=\"1883\" grid=\"1\" gridSize=\"10\" guides=\"1\" tooltips=\"1\" connect=\"1\" arrows=\"1\" fold=\"1\" page=\"1\" pageScale=\"1\" pageWidth=\"{page_width}\" pageHeight=\"{page_height}\" math=\"0\" shadow=\"0\">
+          <root>",id=diagram.id,page=diagram.page_name,page_width=diagram.page_width,page_height=diagram.page_height);
+          for c in diagram.cells {
+            d.push_str(Cell::to_xml(&c).as_str());
+          }
+          d.push_str("</root>
+          </mxGraphModel>
+        </diagram>");
+        return d;
+    }
    
-    for row in &table {
-        //if index > 1 {break;}
-        let id=row.get("Id").unwrap_or("<id missing>");
-        let item=row.get("Item").unwrap_or("<item missing>");
-        let azione=row.get("Azione").unwrap_or("<azione missing>");
-        //let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
-        sw.append_row(row![id, azione,item])?;
-        /*
-        for next in next_list.iter() {
+}
+impl Cell {
+    fn to_xml (cell: &Cell) -> String {
+        match cell.cell_type {
+            CellType::RECTANGLE =>
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+<mxCell style=\"rounded=0;whiteSpace=wrap;html=1;sketch=0;shadow=0;fillColor=#dae8fc;strokeColor=#6c8ebf;\" parent=\"1\" vertex=\"1\">
+    <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+</mxCell>
+</UserObject>",text=cell.text,tooltip=cell.tooltip,id=cell.id,
+               x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::DIAMON => 
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+<mxCell style=\"rhombus;whiteSpace=wrap;html=1;shadow=0;sketch=0;\" vertex=\"1\" parent=\"1\">
+    <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+</mxCell>
+</UserObject>",id=cell.id, text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,
+                         width=cell.geometry.width, height=cell.geometry.height),
+            CellType::EDGE => 
+                format!("<mxCell id=\"{id}\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;\" edge=\"1\" parent=\"1\" source=\"{source}\" target=\"{target}\">
+    <mxGeometry relative=\"1\" as=\"geometry\" />
+</mxCell>",id=cell.id, source=cell.source,target=cell.target),
+            CellType::EDGE_WITH_LABEL => 
+                format!("<mxCell id=\"{id}\" value=\"{text}\" style=\"edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];\" vertex=\"1\" connectable=\"0\" parent=\"{source}\">
+    <mxGeometry relative=\"1\" as=\"geometry\">
+        <mxPoint as=\"offset\" />
+    </mxGeometry>
+</mxCell>",id=cell.id, text=cell.text,source=cell.source),
+            CellType::DOCUMENT =>
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+    <mxCell id=\"{id}\" value=\"{text}\" style=\"shape=document;whiteSpace=wrap;html=1;boundedLbl=1;shadow=0;sketch=0;\" vertex=\"1\" parent=\"1\">
+        <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+    </mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            _=> format!("isn't a xml"),
         }
-        */
-        index=index+1;
-       // println!("{},{},{},{:?}",id,item,azione,next_list);
+        
     }
-    sw.append_row(row![(),(),()])
+    
+}
 
-}).expect("write excel error!");
+#[derive(Debug)]
+struct Diagram {
+    id:String,
+    page_name:String,
+    page_width:u16,
+    page_height:u16,
+    cells: Vec<Cell>
+}
 
-wb.write_sheet(&mut edges, |sheet_writer| {
-    let sw = sheet_writer;
-    sw.append_row(row!["Target", "Source","Type","Label"])?;
-
-    for row in &table {
-        let id=row.get("Id").unwrap_or("<id missing>");
-        let item=row.get("Item").unwrap_or("<item missing>");
-        let azione=row.get("Azione").unwrap_or("<azione missing>");
-
-        let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
-
-        for next in next_list.iter() {
-            sw.append_row(row![next.link.to_string(),id,"D",next.action.to_string()])?;
-        }
-       
+impl PrintShape for Node {
+    fn print(&self) {
+        println!("Print node: {:?}",self);
     }
-    sw.append_row(row![(),(),()])
-}).expect("write excel error!");
+}
 
+impl PrintShape for Edge {
+    fn print(&self) {
+        println!("Print edge: {:?}",self);
+    }
+}
 
+fn printShape<T>(t:T)
+    where T:PrintShape
+{
+    t.print()
+}
 
 /*
-  wb.write_sheet(&mut sheet, |sheet_writer| {
-    let sw = sheet_writer;
-    sw.append_row(row!["Name", "Title","Success","XML Remark"])?;
-    sw.append_row(row!["Amy", (), true,"<xml><tag>\"Hello\" & 'World'</tag></xml>"])
-    }).expect("write excel error!");
+fn getShape(String: shape_type) -> Shape {
+
+}
 */
 
-  wb.close().expect("close excel error!");
-
-    Ok(())
+trait Show {
+    fn show(&self) -> String;
 }
 
-    // txt1&nbsp;link1<br>txt2&nbsp;link2
-fn get_next(td:&str) -> Vec<Next>{ 
-        // TODO: action is an option
-        
-        let mut next_list:Vec<Next> = Vec::new();
+trait Location {
+    fn location(&self) -> String;
+}
 
-        let v: Vec<&str> = td.split("<br>").collect();
+trait ShowTell: Show + Location {}
 
-        if v.len()==1 {
-            let next=Next {
-                action:String::from(""),
-                link:get_link(&v[0].to_string()),
-            };
-            next_list.push(next);
-        } else 
-        {
-            for c in v.iter() {
-            let z:Vec<&str> =c.split("&nbsp;").collect();
-                if z.len()==1 && z[0].is_empty(){
-                    continue;
-                } else if z.len()==1 && !z[0].is_empty(){
-                    let next=Next {
-                        action:String::from(""),
-                        link:get_link(&v[0].to_string()),
-                };
-                next_list.push(next); 
-                } else {
-                let next=Next {
-                    action:string_clean(z[0].to_string()),
-                    link:get_link(&z[1].to_string()),
-               };
-               next_list.push(next);
-            }
+#[derive(Debug)]
+struct Foo {
+    name: String,
+    location: String
+}
+
+impl Foo {
+    fn new(name: &str, location: &str) -> Foo {
+        Foo{
+            name: name.to_string(),
+            location: location.to_string()
         }
-        }
-        return next_list;
     }
+}
+
+impl Show for Foo {
+    fn show(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl Location for Foo {
+    fn location(&self) -> String {
+        self.location.clone()
+    }
+}
+
+impl ShowTell for Foo {}
+
+fn main(){
+    let g1= Geometry{x:0,y:0,width:120,height:60,relative:0};
+    let g2= Geometry{x:120,y:60,width:240,height:120,relative:0};
+    let node1 = Node{id:String::from("pluto-1"),style:String::from("anystyle"),
+                      text:String::from("I'm node 1"), tooltip:String::from("I'm node 1"), geometry:g1};
+    let node2 = Node{id:String::from("pluto-2"),style:String::from("anystyle"),
+                      text:String::from("I'm node 2"), tooltip:String::from("I'm node 2"), geometry:g2};
+                     
+    let edge = Edge{id:String::from("pippo-1"),style:String::from("anystyle"),
+    text:String::from("I'm edge from 1 to 2"),
+    source:String::from("pluto-1"), target:String::from("pluto-2")};
+
+    printShape(node1);
+    printShape(node2);
+    printShape(edge);
+    let foo = Foo::new("Pete","bathroom");
+
+    dbg!(foo.show());
+    let g3= Geometry{x:120,y:60,width:240,height:120,relative:0};
+    let g4= Geometry{x:120,y:60,width:240,height:120,relative:0};
+    let g5= Geometry{x:120,y:60,width:240,height:120,relative:0};
+
+    let cell1=Cell {id:String::from("minny-1"), text:String::from("I'm a rectangle"), 
+                          tooltip:String::from("I'm a rectangle"),geometry:g3,cell_type:CellType::RECTANGLE,
+                          source:String::from("0"), target:String::from("0")};
+    let cell2=Cell {id:String::from("minny-1"), text:String::from("I'm a rectangle"), 
+                          tooltip:String::from("I'm a rectangle"),geometry:g4,cell_type:CellType::RECTANGLE,
+                          source:String::from("0"), target:String::from("0")};
+    let cell3=Cell {id:String::from("minny-1"), text:String::from("I'm an edge"), 
+                          tooltip:String::from("I'm a rectangle"),geometry:g5,cell_type:CellType::EDGE,
+                          source:String::from("0"), target:String::from("0")};
+
+    let mut cell_list:Vec<Cell>=Vec::new();
     
+    //cell_list.push(cell1);
+    cell_list.push(cell1);
+    cell_list.push(cell2);
+    cell_list.push(cell3);
 
-fn string_clean(s:String) -> String{
-      s.replace(&['\n','\t',' '][..],"")
- }
 
-    fn get_link(link:&String) -> String{
-        let start_index= match link.find(">"){
-            Some(x)=> x,
-            None => 0,   
-         };
+    let diagram=Diagram{id:String::from("FirstDiagram"),page_name:String::from("FirstPage"),
+                         page_height:780,page_width:1200, cells: cell_list};
 
-        let end_index= match link.find("</a>"){
-            Some(x)=> x,
-            None => link.len(),   
-         };
 
-        let _link=link.substring(start_index+1, end_index);
-        return _link.to_string();
-    }
+    println!(">>> {:?}",Diagram::to_xml(diagram));
 
-    fn split_td(td: &str) -> Vec<&str>{
+    //println!("{}",Cell::to_xml(&cell3));
 
-        let v: Vec<&str> = td.split("<br>").collect();
-
-        return v;
-
-        //<a href="#AUT_AMB_ESTAR[2837]_139776">AUT_AMB_ESTAR[2837]_139776</a>
-
-    }
+}

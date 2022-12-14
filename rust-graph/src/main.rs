@@ -117,6 +117,52 @@ impl Document {
 }
 
 impl Cell {
+    fn get_default_geometry(cell_type:CellType) -> Geometry {
+
+        match cell_type {
+            CellType::RECTANGLE => 
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::DIAMON => 
+            return Geometry{
+                width:60,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::EDGE =>
+            return Geometry{
+                width:0,
+                height:0,
+                x:0,
+                y:0,
+                relative:1
+            },
+            CellType::EDGE_WITH_LABEL =>
+            return Geometry{
+                width:0,
+                height:0,
+                x:0,
+                y:0,
+                relative:1
+            },
+            CellType::DOCUMENT =>
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+    }
+}
+
     fn to_xml (cell: &Cell) -> String {
         let mut rng =rand::thread_rng();
 
@@ -244,6 +290,7 @@ fn main(){
     let foo = Foo::new("Pete","bathroom");
 
     dbg!(foo.show());
+    /*
     let g3= Geometry{x:120,y:60,width:240,height:120,relative:0};
     let g4= Geometry{x:240,y:280,width:240,height:120,relative:0};
     let g5= Geometry{x:120,y:450,width:60,height:60,relative:0};
@@ -253,6 +300,17 @@ fn main(){
     let g9= Geometry{x:100,y:520,width:60,height:60,relative:0};
     let g10= Geometry{x:0,y:520,width:60,height:60,relative:0};
     let g11= Geometry{x:100,y:520,width:60,height:60,relative:0};
+     */
+    let g3=Cell::get_default_geometry(CellType::RECTANGLE);
+    let g4=Cell::get_default_geometry(CellType::RECTANGLE);
+    let g5=Cell::get_default_geometry(CellType::EDGE_WITH_LABEL);
+    let g6=Cell::get_default_geometry(CellType::DIAMON);
+    let g7=Cell::get_default_geometry(CellType::EDGE_WITH_LABEL);
+    let g8=Cell::get_default_geometry(CellType::RECTANGLE);
+    let g9 = Cell::get_default_geometry(CellType::RECTANGLE);
+    let g10=Cell::get_default_geometry(CellType::EDGE_WITH_LABEL);
+    let g11=Cell::get_default_geometry(CellType::EDGE_WITH_LABEL);
+
 
     let cell1=Cell {id:String::from("minnie-1"), text:String::from("I'm a rectangle"), 
                           tooltip:String::from("I'm a rectangle"),geometry:g3,cell_type:CellType::RECTANGLE,

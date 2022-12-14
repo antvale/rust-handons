@@ -11,3 +11,5 @@ table-extract="0.2.2"
 substring ="1.4.5"
 simple_excel_writer="0.2.0"
 rand="0.8.5"
+xml-rs="0.8.0"
+

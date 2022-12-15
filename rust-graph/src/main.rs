@@ -2,10 +2,11 @@ use std::io::{self, Read, Result};
 use std::fs::File;
 use std::io::BufReader;
 use std::io::prelude::*;
+use std::process::id;
 use std::str;
-use export_drawio::CellType;
+use export_drawio::{CellType, Cell};
 use substring::Substring;
-extern crate table_extract;
+extern crate table_extract as table;
 
 
 mod export_drawio;
@@ -19,7 +20,10 @@ struct Next {
 
 fn main() -> Result<()>{
 
-    let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
+    // let mut filename = String::from("./samples/FE706 - SV - Filodiffusione.htm");
+    //let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
+    let mut filename = String::from("./samples/AAA_CONNETTIVITA_RIEPILOGO.htm");
+    //let mut filename = String::from("./samples/FE110 - Navigazione Lenta NEW.htm");
 
     let file = File::open(&filename)?;
     let mut buf_reader = BufReader::new(file);
@@ -31,17 +35,82 @@ fn main() -> Result<()>{
     let mut file = File::create(filename)?;
    
 
-    let mut cell_list:Vec<export_drawio::Cell>=Vec::new();
+   let mut cell_list:Vec<export_drawio::Cell>=Vec::new();
+
+   let mut node_stack:Vec<String>=Vec::new();
+   let mut row_stack:Vec<table::Row>=Vec::new();
+
+   // let mut row_stack:Vec<Row>=Vec::new();
+
+   let id="AUT_AMB_ESTAR[8857]_25510";
+
+   node_stack.push(String::from(id));
+
+   loop {
+    println!("### Stack size: {}",node_stack.len());
+    println!("### Stack items: {:?}",node_stack);
+    
+    let node=node_stack.pop().unwrap();
+
+    println!("Get node: {}",node);
+
+    let row=table.iter().find(|x| x.get("Id").unwrap()==node);
+
+    match row {
+        Some(x) => {
+            println!("node: {}",x.get("Id").unwrap_or("<id missing>"));
+            row_stack.push(x);
+
+            let next_list:Vec<Next>=get_next(x.get("Next").unwrap_or("<next missing>"));
+
+            for next in next_list.iter() {
+                match row_stack.iter().find(|x| x.get("Id").unwrap()==next.link) {
+                    Some(x) => {continue},
+                    _ => {},
+                };
+                node_stack.push(next.link.to_string());
+              }
+
+        },
+        _ => {},
+
+    };
+
+    if node_stack.len()==0 {break};
+
+   }
    
-    for row in &table {
+   // push id into stack
+   // loop ...
+   //   pop from stack
+   //   get node from table by id
+   //   get children from node
+   //   push children to stack
+   //   break from loop when stack is empty
+   
+
+    for row in &row_stack {
         //if index > 1 {break;}
+        
         let id=row.get("Id").unwrap_or("<id missing>");
         let item=row.get("Item").unwrap_or("<item missing>");
-        let action=row.get("Azione").unwrap_or("<azione missing>");
+        let action=row.get("Azione").unwrap_or("<azione missing>").trim();
+       
+        if (item=="Stampa") {continue;}
+
         let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
 
+        
+        //let mut cell_item_type=CellType::RECTANGLE;
+
         // create cell node
-        let cell=export_drawio::Cell {id:String::from(id), text:String::from(item), 
+        //if item=="Scelta" {
+        //    cell_item_type=CellType::DIAMON;
+        //}
+        
+        //let cell_item_type_tmp= cell_item_type;
+
+        let cell=export_drawio::Cell {id:String::from(id), text:String::from(xml::escape::escape_str_attribute(item)), 
         tooltip:String::from(xml::escape::escape_str_attribute(action)),geometry:export_drawio::Cell::get_default_geometry(CellType::RECTANGLE),cell_type:CellType::RECTANGLE,
         source:String::from("0"), target:String::from("0")};
         cell_list.push(cell);
@@ -49,10 +118,12 @@ fn main() -> Result<()>{
         let mut index=0;
 
         for next in next_list.iter() {
+            
+            //if (String::from(&next.action)!="Altrimenti") {continue;}
             //create edges
             let mut edge_id=format!("{}-{}",id,index);
-            let cell=export_drawio::Cell {id:edge_id, text:String::from(&next.action), 
-                tooltip:String::from(action),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
+            let cell=export_drawio::Cell {id:edge_id, text:String::from(xml::escape::escape_str_attribute(&next.action).trim()), 
+                tooltip:String::from(xml::escape::escape_str_attribute(action).trim()),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
                 source:String::from(id), target:String::from(&next.link)};
             cell_list.push(cell);
             index=index+1;

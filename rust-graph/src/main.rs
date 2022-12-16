@@ -167,13 +167,13 @@ let mut dia_list:Vec<export_drawio::Diagram>=Vec::new();
     Ok(())
 }
 
-    // txt1&nbsp;link1<br>txt2&nbsp;link2
+    // txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
 fn get_next(td:&str) -> Vec<Next>{ 
         // TODO: action is an option
         
         let mut next_list:Vec<Next> = Vec::new();
 
-        let v: Vec<&str> = td.split("<br>").collect();
+        let v: Vec<&str> = td.split("<a").collect();
 
         if v.len()==1 {
             let next=Next {

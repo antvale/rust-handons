@@ -46,6 +46,7 @@ fn main() -> Result<()>{
 
    node_stack.push(String::from(id));
 
+
    loop {
     println!("### Stack size: {}",node_stack.len());
     println!("### Stack items: {:?}",node_stack);
@@ -59,9 +60,20 @@ fn main() -> Result<()>{
     match row {
         Some(x) => {
             println!("node: {}",x.get("Id").unwrap_or("<id missing>"));
-            row_stack.push(x);
 
-            let next_list:Vec<Next>=get_next(x.get("Next").unwrap_or("<next missing>"));
+            let mut i=0;
+
+            for r in &row_stack {
+                if r.get("Id").unwrap().eq(node.as_str()) {break;}
+                i+=1;
+            }
+            if i==row_stack.len(){
+                row_stack.push(x);
+            }
+
+            let next_list:Vec<Next>=get_next_item(x.get("Next").unwrap_or("<next missing>"));
+
+            println!(">>{:?}<<",next_list);
 
             for next in next_list.iter() {
                 match row_stack.iter().find(|x| x.get("Id").unwrap()==next.link) {
@@ -80,6 +92,8 @@ fn main() -> Result<()>{
 
    }
    
+   println!("Cell Type: {:?}",get_celltype_from_item("Stella"));
+
    // push id into stack
    // loop ...
    //   pop from stack
@@ -98,7 +112,7 @@ fn main() -> Result<()>{
        
         if (item=="Stampa") {continue;}
 
-        let mut next_list:Vec<Next>=get_next(row.get("Next").unwrap_or("<next missing>"));
+        let next_list:Vec<Next>=get_next_item(row.get("Next").unwrap_or("<next missing>"));
 
         
         //let mut cell_item_type=CellType::RECTANGLE;
@@ -110,8 +124,12 @@ fn main() -> Result<()>{
         
         //let cell_item_type_tmp= cell_item_type;
 
+       // let mut escaped_item=xml::escape::escape_str_attribute(item);
+
         let cell=export_drawio::Cell {id:String::from(id), text:String::from(xml::escape::escape_str_attribute(item)), 
-        tooltip:String::from(xml::escape::escape_str_attribute(action)),geometry:export_drawio::Cell::get_default_geometry(CellType::RECTANGLE),cell_type:CellType::RECTANGLE,
+        tooltip:String::from(xml::escape::escape_str_attribute(action)),
+        geometry:export_drawio::Cell::get_default_geometry(get_celltype_from_item(item)),
+        cell_type:get_celltype_from_item(item),
         source:String::from("0"), target:String::from("0")};
         cell_list.push(cell);
 
@@ -122,8 +140,14 @@ fn main() -> Result<()>{
             //if (String::from(&next.action)!="Altrimenti") {continue;}
             //create edges
             let mut edge_id=format!("{}-{}",id,index);
-            let cell=export_drawio::Cell {id:edge_id, text:String::from(xml::escape::escape_str_attribute(&next.action).trim()), 
-                tooltip:String::from(xml::escape::escape_str_attribute(action).trim()),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
+            let mut text=String::from(next.action.as_str());
+            let mut tooltip=String::from(next.action.as_str());
+
+            if text.len()>50 {
+                text=format!("edge-{}",index);
+            }
+            let cell=export_drawio::Cell {id:edge_id, text:String::from(xml::escape::escape_str_attribute(&text).trim()), 
+                tooltip:String::from(xml::escape::escape_str_attribute(&tooltip).trim()),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
                 source:String::from(id), target:String::from(&next.link)};
             cell_list.push(cell);
             index=index+1;
@@ -167,7 +191,76 @@ let mut dia_list:Vec<export_drawio::Diagram>=Vec::new();
     Ok(())
 }
 
-    // txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
+fn get_celltype_from_item(item:&str) -> export_drawio::CellType{
+
+    match String::from(xml::escape::escape_str_attribute(item)).as_str() {
+      "Scelta"  => CellType::TRAPEZOID,
+      "Choice"  => CellType::DIAMON,
+      "Stella"  => CellType::DOCUMENT,
+      "Raggio"  => CellType::PARALLELOGRAM,
+      "Jump"    => CellType::STEP,
+      "Scelta Utente" => CellType::HEXAGON,
+      "Callback"      => CellType::TRIANGLE,
+      _ => CellType::RECTANGLE
+    }
+}
+
+// txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
+fn get_next_item(td:&str) -> Vec<Next> { 
+
+    let mut next_list:Vec<Next> = Vec::new();
+
+    let mut next:Next = Next{action:String::from(""),link:String::from("")};
+
+    let v: Vec<&str> = td.split("</a>").collect();
+
+    let mut index=0;
+
+    if v.len()>1 {
+        for a in v.iter() {
+            if index> v.len()-2 {break;}
+
+            let b:Vec<&str>=a.split("<a").collect();
+            if b.len()>1 {
+                let _link=match get_link(&b[1].to_string()){
+                    Some(x) => x,
+                    None => continue,
+                };
+                 next=Next {
+                    action:string_clean(b[0].to_string()),
+                    link:_link,
+               };
+            } else {
+                let _link=match get_link(&b[0].to_string()){
+                    Some(x) => x,
+                    None => continue,
+                };
+                next=Next {
+                    action:String::from(""),
+                    link:_link,
+                };
+            }
+            next_list.push(next);
+            index+=1;
+        }
+    } else {
+        let _link=match get_link(&v[0].to_string()){
+            Some(x) => x,
+            None => return next_list,
+        };
+        next=Next {
+            action:String::from(""),
+            link:_link,
+        };
+        next_list.push(next);
+    }
+    
+    next_list
+}
+
+
+// txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
+/*
 fn get_next(td:&str) -> Vec<Next>{ 
         // TODO: action is an option
         
@@ -204,28 +297,34 @@ fn get_next(td:&str) -> Vec<Next>{
         }
         return next_list;
     }
-    
+ */  
 
 fn string_clean(s:String) -> String{
       s.replace(&['\n','\t',' '][..],"")
  }
 
-    fn get_link(link:&String) -> String{
-        let start_index= match link.find(">"){
-            Some(x)=> x,
-            None => 0,   
-         };
+ fn get_link(link:&String) -> Option<String>{
 
-        let end_index= match link.find("</a>"){
+   
+    if link.len()==0 || link.eq("") || !link.contains("href") {
+        return None;
+    }
+
+    let start_index= match link.find("\">"){
+        Some(x)=> x,
+        None => 0,   
+        };
+/*
+        let end_index= match link.find("\">"){
             Some(x)=> x,
             None => link.len(),   
          };
-
-        let _link=link.substring(start_index+1, end_index);
-        return _link.to_string();
+*/
+        let _link=link.substring(start_index+2, link.len());
+        return Some(string_clean(_link.to_string()));
     }
 
-    fn split_td(td: &str) -> Vec<&str>{
+fn split_td(td: &str) -> Vec<&str>{
 
         let v: Vec<&str> = td.split("<br>").collect();
 

@@ -44,7 +44,12 @@ pub enum CellType {
     EDGE_WITH_LABEL,
     RECTANGLE,
     DIAMON,
-    DOCUMENT
+    DOCUMENT,
+    PARALLELOGRAM,
+    TRAPEZOID,
+    HEXAGON,
+    TRIANGLE,
+    STEP,
 }
 
 #[derive(Debug)]
@@ -135,10 +140,50 @@ impl Cell {
                 y:0,
                 relative:0
             },
+            CellType::PARALLELOGRAM =>
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::HEXAGON =>
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::TRAPEZOID =>
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::TRIANGLE =>
+            return Geometry{
+                width:60,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
+            CellType::STEP =>
+            return Geometry{
+                width:120,
+                height:60,
+                x:0,
+                y:0,
+                relative:0
+            },
     }
 }
 
-    pub fn to_xml (cell: &Cell) -> String {
+pub fn to_xml (cell: &Cell) -> String {
         let mut rng =rand::thread_rng();
 
         match cell.cell_type {
@@ -151,29 +196,63 @@ impl Cell {
                x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
             CellType::DIAMON => 
                 format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
-<mxCell style=\"rhombus;whiteSpace=wrap;html=1;shadow=0;sketch=0;\" vertex=\"1\" parent=\"1\">
+<mxCell style=\"rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;\" vertex=\"1\" parent=\"1\">
     <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
 </mxCell>
 </UserObject>",id=cell.id, text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,
-                         width=cell.geometry.width, height=cell.geometry.height),
+   width=cell.geometry.width, height=cell.geometry.height),
             CellType::EDGE => 
-                format!("<mxCell id=\"{id}\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;\" edge=\"1\" parent=\"1\" source=\"{source}\" target=\"{target}\">
+                format!("<UserObject label=\"\" tooltip=\"{tooltip}\" id=\"{id}\">
+  <mxCell style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;\" edge=\"1\" parent=\"1\" source=\"{source}\" target=\"{target}\">
     <mxGeometry relative=\"1\" as=\"geometry\" />
-</mxCell>",id=cell.id, source=cell.source,target=cell.target),
+  </mxCell>
+</UserObject>",id=cell.id, tooltip=cell.tooltip, source=cell.source,target=cell.target),
             CellType::EDGE_WITH_LABEL => 
-                format!("<mxCell id=\"{id}\" style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;\" edge=\"1\" parent=\"1\" source=\"{source}\" target=\"{target}\">
-    <mxGeometry relative=\"1\" as=\"geometry\" />
-</mxCell>
-<mxCell id=\"{sub_id}\" value=\"{text}\" style=\"edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];\" vertex=\"1\" connectable=\"0\" parent=\"{id}\">
-    <mxGeometry relative=\"1\" as=\"geometry\">
+                format!("<UserObject label=\"\" tooltip=\"{tooltip}\" id=\"{id}\">
+   <mxCell style=\"edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;\" edge=\"1\" parent=\"1\" source=\"{source}\" target=\"{target}\">
+     <mxGeometry relative=\"1\" as=\"geometry\" />
+   </mxCell>
+</UserObject>
+    <mxCell id=\"{sub_id}\" value=\"{text}\" style=\"edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];\" vertex=\"1\" connectable=\"0\" parent=\"{id}\">
+      <mxGeometry relative=\"1\" as=\"geometry\">
         <mxPoint as=\"offset\" />
-    </mxGeometry>
-</mxCell>",sub_id=rng.gen::<u32>(),id=cell.id, text=cell.text,source=cell.source,target=cell.target),
+      </mxGeometry>
+   </mxCell>",sub_id=rng.gen::<u32>(),id=cell.id, text=cell.text,tooltip=cell.tooltip,source=cell.source,target=cell.target),
             CellType::DOCUMENT =>
                 format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
-    <mxCell id=\"{id}\" value=\"{text}\" style=\"shape=document;whiteSpace=wrap;html=1;boundedLbl=1;shadow=0;sketch=0;\" vertex=\"1\" parent=\"1\">
+   <mxCell style=\"shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#fff2cc;strokeColor=#d6b656;fillStyle=auto;\" vertex=\"1\" parent=\"1\">
         <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
     </mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::PARALLELOGRAM => 
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+   <mxCell style=\"shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;\" vertex=\"1\" parent=\"1\">
+     <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+   </mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::TRAPEZOID => 
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+   <mxCell style=\"shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillColor=#d5e8d4;strokeColor=#82b366;\" vertex=\"1\" parent=\"1\">
+     <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+   </mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::HEXAGON => 
+                format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+   <mxCell style=\"shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;fillStyle=auto;\" vertex=\"1\" parent=\"1\">
+     <mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+   </mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::TRIANGLE => 
+format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+<mxCell style=\"shape=triangle;whiteSpace=wrap;html=1;fillStyle=auto;fillColor=#f5f5f5;fontColor=#333333;strokeColor=#666666;\" vertex=\"1\" parent=\"1\">
+<mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+</mxCell>
+</UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
+            CellType::STEP => 
+format!("<UserObject label=\"{text}\" tooltip=\"{tooltip}\" id=\"{id}\">
+<mxCell style=\"shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;fillStyle=auto;fillColor=#e1d5e7;strokeColor=#9673a6;\" vertex=\"1\" parent=\"1\">
+<mxGeometry x=\"{x}\" y=\"{y}\" width=\"{width}\" height=\"{height}\" as=\"geometry\" />
+</mxCell>
 </UserObject>",id=cell.id,text=cell.text,tooltip=cell.tooltip,x=cell.geometry.x,y=cell.geometry.y,width=cell.geometry.width,height=cell.geometry.height),
             _=> format!("isn't a xml"),
         }

@@ -22,16 +22,21 @@ fn main() -> Result<()>{
 
     // let mut filename = String::from("./samples/FE706 - SV - Filodiffusione.htm");
     //let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
-    let mut filename = String::from("./samples/AAA_CONNETTIVITA_RIEPILOGO.htm");
-    //let mut filename = String::from("./samples/FE110 - Navigazione Lenta NEW.htm");
+    //let mut filename = String::from("./samples/AAA_CONNETTIVITA_RIEPILOGO.htm");
+    let mut filename = String::from("./samples/FE110 - Navigazione Lenta NEW.htm");
+    //let mut filename = String::from("./samples/FE114 - Caduta Connessione NEW.htm");
 
     let file = File::open(&filename)?;
     let mut buf_reader = BufReader::new(file);
     let mut html = String::new();
     buf_reader.read_to_string(&mut html)?;
 
+
     let table = table_extract::Table::find_first(&html).unwrap();
-    filename.push_str(".drawio.xml");
+    
+    let id="AUT_AMB_ESTAR[2517]_87380";
+
+    filename.push_str(format!("-{}.drawio.xml",&id).as_str());
     let mut file = File::create(filename)?;
    
 
@@ -42,7 +47,7 @@ fn main() -> Result<()>{
 
    // let mut row_stack:Vec<Row>=Vec::new();
 
-   let id="AUT_AMB_ESTAR[8857]_25510";
+   
 
    node_stack.push(String::from(id));
 
@@ -92,7 +97,7 @@ fn main() -> Result<()>{
 
    }
    
-   println!("Cell Type: {:?}",get_celltype_from_item("Stella"));
+   //println!("Cell Type: {:?}",get_celltype_from_item("Stella"));
 
    // push id into stack
    // loop ...
@@ -110,7 +115,7 @@ fn main() -> Result<()>{
         let item=row.get("Item").unwrap_or("<item missing>");
         let action=row.get("Azione").unwrap_or("<azione missing>").trim();
        
-        if (item=="Stampa") {continue;}
+       // if (item=="Stampa") {continue;}
 
         let next_list:Vec<Next>=get_next_item(row.get("Next").unwrap_or("<next missing>"));
 
@@ -144,10 +149,12 @@ fn main() -> Result<()>{
             let mut tooltip=String::from(next.action.as_str());
 
             if text.len()>50 {
-                text=format!("edge-{}",index);
+                //text=text.truncate(50);
+                text.truncate(50);
+                text=format!("{}...",&text);
             }
-            let cell=export_drawio::Cell {id:edge_id, text:String::from(xml::escape::escape_str_attribute(&text).trim()), 
-                tooltip:String::from(xml::escape::escape_str_attribute(&tooltip).trim()),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
+            let cell=export_drawio::Cell {id:edge_id, text:string_clean_br(String::from(xml::escape::escape_str_attribute(&text))), 
+                tooltip:string_clean_br(String::from(xml::escape::escape_str_attribute(&tooltip))),geometry:export_drawio::Cell::get_default_geometry(CellType::EDGE_WITH_LABEL),cell_type:CellType::EDGE_WITH_LABEL,
                 source:String::from(id), target:String::from(&next.link)};
             cell_list.push(cell);
             index=index+1;
@@ -300,7 +307,12 @@ fn get_next(td:&str) -> Vec<Next>{
  */  
 
 fn string_clean(s:String) -> String{
-      s.replace(&['\n','\t',' '][..],"")
+      s.replace(&['\n','\t'][..],"");
+      s.as_str().replace("<br>", " ").trim().to_string()
+ }
+
+ fn string_clean_br(s:String) -> String{
+    string_clean(s).as_str().replace("<br>", " ").to_string()
  }
 
  fn get_link(link:&String) -> Option<String>{

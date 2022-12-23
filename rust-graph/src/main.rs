@@ -18,12 +18,45 @@ struct Next {
     link:String
 }
 
+///
+/// visited_node_stack -> stack containing the nodes visited during the tree path
+/// tree_stack -> stack containing all the nodes and edges of the tree
+/// shrunk_tree_stack -> compressed tree where linked nodes with same type are compressed
+/// 
+/// node struct -> id, label, tooltip, outgoing_edge_list, fan_in, fan_out
+/// 
+/// shrinking rule:
+/// 1) nodes must be of the same type
+/// 2) nodes must be linked
+/// 3) current node must have a fan_out = 1
+/// 4) next node must have a fan_in=1
+/// 
+
+#[derive(Debug)]
+struct Edge {
+    id: String,
+    label: String,
+    tooltip: String,
+    source: Node,
+    target: Node
+}
+#[derive(Debug)]
+struct Node {
+    id: String,
+    label: String,
+    tooltip: String,
+    outgoing_edge_list: Vec<Edge>,
+    fan_in: i32,
+    fan_out: i32
+} 
+
+
 fn main() -> Result<()>{
 
     // let mut filename = String::from("./samples/FE706 - SV - Filodiffusione.htm");
     //let mut filename = String::from("./samples/FE251 - FO - Borchia GSM.htm");
-    //let mut filename = String::from("./samples/AAA_CONNETTIVITA_RIEPILOGO.htm");
-    let mut filename = String::from("./samples/FE110 - Navigazione Lenta NEW.htm");
+    let mut filename = String::from("./samples/AAA_CONNETTIVITA_RIEPILOGO.htm");
+    //let mut filename = String::from("./samples/FE110 - Navigazione Lenta NEW.htm");
     //let mut filename = String::from("./samples/FE114 - Caduta Connessione NEW.htm");
 
     let file = File::open(&filename)?;
@@ -34,7 +67,7 @@ fn main() -> Result<()>{
 
     let table = table_extract::Table::find_first(&html).unwrap();
     
-    let id="AUT_AMB_ESTAR[2517]_87380";
+    let id="AUT_AMB_ESTAR[8857]_24629";
 
     filename.push_str(format!("-{}.drawio.xml",&id).as_str());
     let mut file = File::create(filename)?;

@@ -1,4 +1,5 @@
 use std::io::{self, Read};
+use std::collections::{HashMap, BTreeMap};
 use anyhow::Ok;
 use anyhow::{anyhow, bail, Context, Result};
 use std::fs::File;
@@ -120,7 +121,8 @@ fn main() -> Result<()>{
     println!();
     println!("Opening \"{}\" read-only.", args[1]);
     let table = table_extract::Table::find_first(&html).unwrap();
-    println!("Extracted \"{}\" rows", table.iter().count());
+    let roots:Vec<String>=retrieve_roots_from_table(&table);
+    println!("Extracted \"{}\" nodes with {} roots", table.iter().count(),roots.len());
     println!();
 
     //let mut current_root=String::from("");
@@ -128,11 +130,14 @@ fn main() -> Result<()>{
     let mut tree=Vec::new();
 
     // extract the root of the tree
-    let mut root=String::from("");
-    for row in &table {
+    let mut root=String::from("\\");
+    /*
+    for row in &table
+     {
         root.push_str(row.get("Id").unwrap_or("<id missing>"));
         break;
     }
+    */
 
     common_info.root.push_str(&root);
     common_info.current_root.push_str(&root);
@@ -160,7 +165,7 @@ fn main() -> Result<()>{
         "export"        => export(arg,&mut tree,&mut common_info,&filename),
         "info"          => info(arg,&mut tree),
         "debug"         => debug(arg,&mut common_info),
-        "list"          => list(arg,&mut tree),
+        "list"          => list(arg,&mut tree, &roots),
         "help"          => help(arg),
         "exit"|"quit"   => break,
         ""              => continue,
@@ -199,6 +204,11 @@ fn help(arg: &str) -> Result<()> {
             println!();
             println!("Change the parent of the tree and build it");
         }
+        "get"    => {
+            println!("Usage: get options");
+            println!();
+            println!("Retrieve one or more node based on the options");
+        }
         "debug"    => {
             println!("Usage: debug on | off");
             println!();
@@ -216,6 +226,7 @@ fn help(arg: &str) -> Result<()> {
             println!("  cd          - Change the root and build the tree");
             println!("  info        - Show info about the selected tree");
             println!("  list        - List the node starting from a parent");
+            println!("  get         - Retrieve specific nodes based on options");
             println!("  debug       - Switch log to debug");
             println!("  help        - Show this help");
             println!("  quit        - Quit gen-tree");
@@ -261,9 +272,18 @@ fn build (table:&table_extract::Table,info:&mut CommonInfo,tree: &mut Vec<Node>)
     let mut edge_visited_stack:Vec<(String,String)>=Vec::new();
     //let mut tree_stack:Vec<Node>=Vec::new();
 
+    if info.current_root.eq("\\") {
+        //build all the forest
+        for row in table {
+            tree.push(convert_row2node(false, row));
+        }
+        return Ok(());
+    }
+
     visited_node_stack.push(String::from(&info.current_root));
 
     loop {
+
         if CommonInfo::is_debug(info){
             println!("### Stack size: {}",visited_node_stack.len());
         }
@@ -282,15 +302,6 @@ fn build (table:&table_extract::Table,info:&mut CommonInfo,tree: &mut Vec<Node>)
                     println!("[Current node: {}]",x.get("Id").unwrap_or("<id missing>"));
                 }
                 let mut i=1;
-                /*
-                let mut i=tree.len();
-                if let Some(position)=tree.iter().position(|x| x.id.eq(node_id.as_str())){
-                   i=position;
-                } else{
-                    tree.push(convert_row2node(true,x));
-                    println!("[Current node: {}] is a new node -> pushed to tree stack",&node_id);
-                }
-                 */
                 
                 for n in tree.iter() {
                     if n.id.eq(node_id.as_str()) {break;}
@@ -454,6 +465,7 @@ fn compact(arg: &str,tree:&mut Vec<Node>, info: &mut CommonInfo) -> Result<()>{
    Ok(())
 }
 
+
 // export the tree in drawio format
 fn export(arg: &str,tree:&Vec<Node>,info:&mut CommonInfo,output_filename:&str) -> Result<()> {
     
@@ -534,15 +546,16 @@ fn export(arg: &str,tree:&Vec<Node>,info:&mut CommonInfo,output_filename:&str) -
     Ok(())
 }
 
-fn list(arg:&str, tree:&mut Vec<Node>) -> Result <()>{
+fn list(arg:&str, tree:&mut Vec<Node>, roots:& Vec<String>) -> Result <()>{
 
     match arg {
         "domande" => tree.iter().filter(|x| x.label.eq("Scelta")).for_each(|x| println!("{}",x.id)),
         "stelle" => tree.iter().filter(|x| x.label.eq("Stella")).for_each(|x| println!("{}",x.id)),
-        "jump" => tree.iter().filter(|x| x.label.eq("Jump")).for_each(|x| println!("{}",x.id)),
+        "jump" => tree.iter().filter(|x| x.label.eq("Jump")).for_each(|x| println!("{}=>{}",x.id,x.tooltip)),
         "decisioni" => tree.iter().filter(|x| x.label.eq("Choice")).for_each(|x| println!("{}",x.id)),
         "opzioni" => tree.iter().filter(|x| x.label.eq("Raggio")).for_each(|x| println!("{}",x.id)),
         "impostazioni" => tree.iter().filter(|x| x.label.eq("Scelta Utente")).for_each(|x| println!("{}",x.id)),
+        "radici" => roots.iter().for_each(|x| println!("{}",x)),
         _  => tree.iter().for_each(|x| println!("{}",x.id)),
 
     }
@@ -632,6 +645,46 @@ fn get_celltype_from_item(item:&str) -> export_drawio::CellType{
     }
 }
 
+fn retrieve_roots_from_table(table:&table::Table) -> Vec<String>{
+
+    let mut edge_list:Vec<String>=Vec::new();
+    let mut node_list:Vec<String>=Vec::new();
+
+    let mut edge_map:BTreeMap<String, i32>=BTreeMap::new();
+
+    let mut index=1;
+
+    for row in table {
+        let id=row.get("Id").unwrap_or("<next missing>");
+      
+        node_list.push(id.to_string());
+
+        let next_list:Vec<Next>=get_next_item(row.get("Next").unwrap_or("<next missing>"));
+
+        for next in &next_list{
+            if let Some(value)= edge_map.get_mut(&next.link.to_string()){
+                *value+=1;
+            } else{
+                edge_map.insert(next.link.to_string(), 1);
+            }
+            
+        }
+      
+        index+=1;
+
+    }
+    
+    let mut root_list:Vec<String>=Vec::new();
+
+    for n in &node_list{
+        if edge_map.contains_key(n) {continue;}
+        root_list.push(n.to_string());
+    }
+
+    root_list
+    
+}
+
 // txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
 fn get_next_item(td:&str) -> Vec<Next> { 
 
@@ -685,46 +738,6 @@ fn get_next_item(td:&str) -> Vec<Next> {
     next_list
 }
 
-
-// txt1&nbsp;<a..>link1</a><br>txt2&nbsp;link2
-/*
-fn get_next(td:&str) -> Vec<Next>{ 
-        // TODO: action is an option
-        
-        let mut next_list:Vec<Next> = Vec::new();
-
-        let v: Vec<&str> = td.split("<a").collect();
-
-        if v.len()==1 {
-            let next=Next {
-                action:String::from(""),
-                link:get_link(&v[0].to_string()),
-            };
-            next_list.push(next);
-        } else 
-        {
-            for c in v.iter() {
-            let z:Vec<&str> =c.split("&nbsp;").collect();
-                if z.len()==1 && z[0].is_empty(){
-                    continue;
-                } else if z.len()==1 && !z[0].is_empty(){
-                    let next=Next {
-                        action:String::from(""),
-                        link:get_link(&v[0].to_string()),
-                };
-                next_list.push(next); 
-                } else {
-                let next=Next {
-                    action:string_clean(z[0].to_string()),
-                    link:get_link(&z[1].to_string()),
-               };
-               next_list.push(next);
-            }
-        }
-        }
-        return next_list;
-    }
- */  
 
 fn string_clean(s:String) -> String{
       s.replace(&['\n','\t'][..],"");

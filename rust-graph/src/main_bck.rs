@@ -74,6 +74,8 @@ fn main() -> Result<()>{
             }
             if i==row_stack.len(){
                 row_stack.push(x);
+            } else {
+                //update the node
             }
 
             let next_list:Vec<Next>=get_next_item(x.get("Next").unwrap_or("<next missing>"));

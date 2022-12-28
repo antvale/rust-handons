@@ -1,5 +1,5 @@
 [package]
-name = "rust-graph"
+name = "gen-tree"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,4 +12,7 @@ substring ="1.4.5"
 simple_excel_writer="0.2.0"
 rand="0.8.5"
 xml-rs="0.8.0"
+anyhow = "1.0"
 
+[dev-dependencies]
+anyhow = "1.0"

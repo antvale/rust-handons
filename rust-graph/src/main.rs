@@ -750,23 +750,34 @@ fn string_clean(s:String) -> String{
 
  fn get_link(link:&String) -> Option<String>{
 
-   
     if link.len()==0 || link.eq("") || !link.contains("href") {
         return None;
     }
 
-    let start_index= match link.find("\">"){
-        Some(x)=> x,
-        None => 0,   
-        };
-/*
-        let end_index= match link.find("\">"){
+    let _link=string_clean(link.to_string()).trim().to_string();
+
+    let mut start_index=0;
+    let mut end_index=_link.len();
+
+    if link.contains("Al ritorno"){
+        start_index= match _link.find("href=\"#"){
+            Some(x)=> x+7,
+            None => 0,   
+            };
+        end_index= match _link.find("\">"){
             Some(x)=> x,
-            None => link.len(),   
-         };
-*/
-        let _link=link.substring(start_index+2, link.len());
-        return Some(string_clean(_link.to_string()));
+            None => 0,   
+            };
+        } else {
+            start_index= match _link.find("\">"){
+                Some(x)=> x+2,
+                None => 0,   
+                };
+            end_index=_link.len();
+        }
+
+        let __link=_link.substring(start_index, end_index);
+        return Some(__link.to_string());
     }
 
 fn split_td(td: &str) -> Vec<&str>{

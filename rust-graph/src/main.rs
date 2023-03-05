@@ -104,7 +104,7 @@ fn main() -> Result<()>{
     if args.len() != 2 {
         eprintln!("Usage: gen-tree filename");
         eprintln!();
-        eprintln!("Filename can be a path to reverse tree file");
+        eprintln!("Filename is the path to html table file");
         bail!("Aborted");
     }
 
@@ -113,9 +113,10 @@ fn main() -> Result<()>{
     let mut buf_reader = BufReader::new(file);
     let mut html = String::new();
     buf_reader.read_to_string(&mut html)?;
+    
 
     println!("**********************************************************************");
-    println!("gen-tree - Generate draw.io graph from reverse table tree structure");
+    println!("gen-tree - Generate draw.io graph from html table tree structure");
     println!("by antvale ");
     println!("**********************************************************************");
     println!();
@@ -167,6 +168,7 @@ fn main() -> Result<()>{
         "debug"         => debug(arg,&mut common_info),
         "list"          => list(arg,&mut tree, &roots),
         "help"          => help(arg),
+        "test"          => test(arg,&mut tree),
         "exit"|"quit"   => break,
         ""              => continue,
         _               => Err(anyhow!(
@@ -182,6 +184,11 @@ fn main() -> Result<()>{
     Ok(())
     }
 
+fn test(arg: &str, tree: &mut Vec<Node>) -> Result<()> {
+    let mut tooltips:Vec<String>=tree.iter().filter(|x|x.label.eq_ignore_ascii_case("Imposta Meta Diagnosi")).take(5).map(|x|x.tooltip.to_string()).collect::<Vec<String>>();
+    println!("{:?}",tooltips);
+    Ok(())
+}
 fn help(arg: &str) -> Result<()> {
     match arg {
         "info"      => {
@@ -551,15 +558,27 @@ fn list(arg:&str, tree:&mut Vec<Node>, roots:& Vec<String>) -> Result <()>{
     match arg {
         "domande" => tree.iter().filter(|x| x.label.eq("Scelta")).for_each(|x| println!("{}",x.id)),
         "stelle" => tree.iter().filter(|x| x.label.eq("Stella")).for_each(|x| println!("{}",x.id)),
-        "jump" => tree.iter().filter(|x| x.label.eq("Jump")).for_each(|x| println!("{}=>{}",x.id,x.tooltip)),
+        "jump" => iter_filter_count_print(tree,"Jump"),
+        "servizi" => iter_filter_count_print(tree,"Servizio Esterno"),
         "decisioni" => tree.iter().filter(|x| x.label.eq("Choice")).for_each(|x| println!("{}",x.id)),
         "opzioni" => tree.iter().filter(|x| x.label.eq("Raggio")).for_each(|x| println!("{}",x.id)),
         "impostazioni" => tree.iter().filter(|x| x.label.eq("Scelta Utente")).for_each(|x| println!("{}",x.id)),
         "radici" => roots.iter().for_each(|x| println!("{}",x)),
+        "diagnosi" => iter_filter_count_print(tree,"Imposta Meta Diagnosi"),
+        "riscontri" => iter_filter_count_print(tree,"Imposta Meta Riscontri"),
         _  => tree.iter().for_each(|x| println!("{}",x.id)),
 
     }
     Ok(())
+}
+
+fn iter_filter_count_print(tree:&mut Vec<Node>, filter:&str) {
+    let mut tooltips:Vec<String>=tree.iter().filter(|x| x.label.eq(filter)).
+    map(|x|x.tooltip.to_string()).collect::<Vec<String>>();
+    tooltips.sort();
+    tooltips.dedup();
+    tooltips.iter().for_each(|x| println!("{}",x));
+    println!("{:34}{}",format!("N.ro {}",filter),tooltips.len());
 }
 
 fn info(arg: &str,tree:&mut Vec<Node>) -> Result<()>{
@@ -570,12 +589,21 @@ fn info(arg: &str,tree:&mut Vec<Node>) -> Result<()>{
         println!("{:34}{}","N.ro Decisioni",tree.iter().filter(|x| x.label=="Choice").count());
         println!("{:34}{}","N.ro Jump",tree.iter().filter(|x| x.label=="Jump").count());
         println!("{:34}{}","N.ro Stelle",tree.iter().filter(|x| x.label=="Stella").count());
-        println!("{:34}{}","N.ro Opzioni",tree.iter().filter(|x| x.label=="Stella").count());
-       
+        println!("{:34}{}","N.ro Diagnosi",tree.iter().filter(|x| x.label=="Imposta Meta Diagnosi").count());
+        println!("{:34}{}","N.ro Servizi",tree.iter().filter(|x| x.label=="Servizio Esterno").count());
+        println!("{:34}{}","N.ro Riscontri",tree.iter().filter(|x| x.label=="Imposta Meta Riscontro").count());
+        
     } else {
-       tree.iter().filter(|x| x.id.eq(arg)).for_each(|x| println!("{:?}",x));
+        match arg {
+            "diagnosi" => tree.iter().filter(|x| x.label.eq("Imposta Meta Diagnosi")).for_each(|x| println!("{}",x.tooltip)),
+            /*"riscontri" => tree.iter().filter(|x| x.label.eq("Imposta Meta Riscontro")). 
+            .collect::<Vec<&Node>>()
+           
+            .sort_by(|a,b| a.tooltip.cmp(&b.tooltip)). .for_each(|x| println!("{}",x.tooltip)),*/
+            _  => tree.iter().filter(|x| x.id.eq(arg)).for_each(|x| println!("{:?}",x)),
+        }
     } 
-    
+    //tree.iter().collect().sort_by(|a,b| a.id.cmp(&b.id));
     Ok(())
 }
 pub fn copy_vec<T: Clone>(vec: &Vec<T>) -> Vec<T> {

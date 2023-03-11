@@ -185,8 +185,14 @@ fn main() -> Result<()>{
     }
 
 fn test(arg: &str, tree: &mut Vec<Node>) -> Result<()> {
-    let mut tooltips:Vec<String>=tree.iter().filter(|x|x.label.eq_ignore_ascii_case("Imposta Meta Diagnosi")).take(5).map(|x|x.tooltip.to_string()).collect::<Vec<String>>();
-    println!("{:?}",tooltips);
+    //let mut tooltips:Vec<String>=
+    let s=tree.iter()
+    .filter(|x|x.label.eq_ignore_ascii_case("Imposta Meta Diagnosi"))
+    .take(5).map(|x|x.tooltip.to_string())
+    .fold(String::from("Diagnosi:"), |acc,x| format!("{}{}",acc,x));
+    println!("{}",s);
+    //.collect::<Vec<String>>();
+    //println!("{:?}",tooltips);
     Ok(())
 }
 fn help(arg: &str) -> Result<()> {
@@ -224,7 +230,7 @@ fn help(arg: &str) -> Result<()> {
         "list"    => {
             println!("Usage: list options");
             println!();
-            println!("List tree element based on options");
+            println!("List tree element based on options: impostazioni|domande|decisioni|jump|diagnosi|stelle|opzioni|servizi|riscontri|cic|");
         }
         _ => {
             println!("Available Commands:");
@@ -565,15 +571,15 @@ fn list(arg:&str, tree:&mut Vec<Node>, roots:& Vec<String>) -> Result <()>{
         "impostazioni" => tree.iter().filter(|x| x.label.eq("Scelta Utente")).for_each(|x| println!("{}",x.id)),
         "radici" => roots.iter().for_each(|x| println!("{}",x)),
         "diagnosi" => iter_filter_count_print(tree,"Imposta Meta Diagnosi"),
-        "riscontri" => iter_filter_count_print(tree,"Imposta Meta Riscontri"),
+        "riscontri" => iter_filter_count_print(tree,"Imposta Meta Riscontro"),
+        "cic" => iter_filter_count_print(tree,"Verifica CIC"),
         _  => tree.iter().for_each(|x| println!("{}",x.id)),
-
     }
     Ok(())
 }
 
 fn iter_filter_count_print(tree:&mut Vec<Node>, filter:&str) {
-    let mut tooltips:Vec<String>=tree.iter().filter(|x| x.label.eq(filter)).
+    let mut tooltips:Vec<String>=tree.iter().filter(|x| x.label.eq_ignore_ascii_case(filter)).
     map(|x|x.tooltip.to_string()).collect::<Vec<String>>();
     tooltips.sort();
     tooltips.dedup();
@@ -592,7 +598,7 @@ fn info(arg: &str,tree:&mut Vec<Node>) -> Result<()>{
         println!("{:34}{}","N.ro Diagnosi",tree.iter().filter(|x| x.label=="Imposta Meta Diagnosi").count());
         println!("{:34}{}","N.ro Servizi",tree.iter().filter(|x| x.label=="Servizio Esterno").count());
         println!("{:34}{}","N.ro Riscontri",tree.iter().filter(|x| x.label=="Imposta Meta Riscontro").count());
-        
+        println!("{:34}{}","N.ro Cic",tree.iter().filter(|x| x.label=="Verifica CIC").count());
     } else {
         match arg {
             "diagnosi" => tree.iter().filter(|x| x.label.eq("Imposta Meta Diagnosi")).for_each(|x| println!("{}",x.tooltip)),
